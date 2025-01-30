@@ -20,6 +20,7 @@ const client = new Client({
 
 const botName = process.env.DISCORD_BOT_NAME;
 var channelName = null;
+var shouldStayDisconnected = false;
 
 client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -30,6 +31,7 @@ client.on("messageCreate", async (message) => {
 
   if (message.member.voice.channel) {
     if (message.content.toLowerCase() === "!join") {
+      shouldStayDisconnected = false;
       const channel = message.member.voice.channel;
       channelName = channel.name;
 
@@ -47,16 +49,20 @@ client.on("messageCreate", async (message) => {
       const userChannel = message.member.voice.channel;
 
       if (connection && userChannel && userChannel.id === connection.joinConfig.channelId) {
+        shouldStayDisconnected = true;
         connection.destroy();
-      }      
+      }
     }
   }
 });
 
 client.on("voiceStateUpdate", async (oldState, newState) => {
-  if (oldState.member.user.username != botName) {
+  if (shouldStayDisconnected) return;
+
+  if (oldState.member.user.username !== botName) {
     if (oldState.channel !== newState.channel) {
       if (oldState.channel && oldState.channel.name === channelName) {
+        console.log(`User ${oldState.member.user.username} disconnected from the channel.`);
         play(oldState.channel, "./sounds/disconnected.wav");
       }
 
@@ -65,6 +71,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
         const file = havingAGoodTime
           ? "./sounds/connected-but-its-loud-af.mp3"
           : "./sounds/connected.wav";
+        console.log(`User ${oldState.member.user.username} entered the channel.`);
         play(newState.channel, file);
       }
     }
